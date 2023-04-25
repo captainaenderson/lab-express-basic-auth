@@ -1,40 +1,52 @@
 const router = require('express').Router();
 const User = require('../models/User.model');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 // SIGN UP -------------------------------------------
 
 router.get('/auth/signup', (req, res) => {
-   res.render('signup');
+   res.render('auth/signup');
 });
 
-router.post('/auth/signup', (req, res, next) => {
+router.post('/signup', (req, res, next) => {
    const { username, password } = req.body;
 
-   if (username === '') {
-      res.render('signup', { message: 'Username cannot be empty' });
-      return;
-   }
-
-   if (password.length < 8) {
-      res.render('signup', {
-         message: 'Pasword has to be minimum 8 characters',
+   if (username === '' || password === '') {
+      res.status(400).render('index', {
+         errorMessage: 'Indicate a username and a password to sign up',
       });
       return;
    }
 
-   User.findOne({ username }).then((userFromDB) => {
-      if (userFromDB !== null) {
-         res.render('signup', { message: 'Username is already taken' });
-      } else {
-         const salt = bcrypt.genSaltSync();
-         const hash = bcrypt.hashSync(password, salt);
+   User.findOne({ username })
+      .then((user) => {
+         if (user !== null) {
+            res.status(400).render('index', {
+               errorMessage: 'The username already exists',
+            });
+            return;
+         } else {
+            bcrypt
 
-         User.create({ username, password: hash })
-            .then((createdUser) => res.redirect('/auth/login'))
-            .catch((err) => next(err));
-      }
-   });
+               .genSalt(saltRounds)
+
+               .then((salt) => bcrypt.hash(password, salt))
+
+               .then((hashedPassword) => {
+                  return User.create({
+                     username,
+
+                     password: hashedPassword,
+                  });
+               })
+
+               .then((user) => {
+                  res.render('success');
+               })
+               .catch((error) => next(error));
+         }
+      })
+      .catch((error) => next(error));
 });
 
 module.exports = router;
